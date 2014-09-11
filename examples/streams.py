@@ -10,6 +10,9 @@ class Handler(YajlContentHandler):
         if self.tokens[-1] == '[':
             self.buf.write(b', ')
 
+    def boolean(self, v):
+        self.buf.write(b"true" if v else b"false")
+
     def string(self, v):
         self.buf.write(b'"%s"' % v)
         self._sep()
@@ -52,3 +55,6 @@ class Handler(YajlContentHandler):
 parser = YajlParser(Handler(), allow_multiple_values=True)
 parser.parse_chunk("""{"foo": [1, 2,""")
 parser.parse_chunk("""3]}{"bar": 9123}""")
+parser.parse("""{"Done": true}""")
+
+parser.parse("more")

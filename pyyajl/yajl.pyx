@@ -58,7 +58,7 @@ cdef bint yajl_null(void* ctx):
 
 cdef bint yajl_boolean(void* ctx, int boolVal):
     cdef object instance = get_instance(ctx)
-    return parse_ret(instance.boolean(boolVal))
+    return parse_ret(instance.boolean(<bint>boolVal))
 
 cdef bint yajl_integer(void* ctx, long long integerVal):
     cdef object instance = get_instance(ctx)
@@ -98,6 +98,8 @@ cdef bint yajl_end_array(void* ctx):
 
 cdef yajl_callbacks* get_callbacks():
     cdef yajl_callbacks* cb = <yajl_callbacks*>malloc(sizeof(yajl_callbacks))
+    if cb == <yajl_callbacks*>NULL:
+        raise MemoryError
     cb.yajl_null = yajl_null
     cb.yajl_boolean = yajl_boolean
     cb.yajl_integer = yajl_integer
@@ -110,6 +112,13 @@ cdef yajl_callbacks* get_callbacks():
     cb.yajl_start_array = yajl_start_array
     cb.yajl_end_array = yajl_end_array
     return cb
+
+cdef get_error_string(yajl_handle hand, data):
+    cdef unsigned char * cerr
+    cerr = yajl_get_error(hand, 1, data, len(data))
+    err = cerr[:]
+    yajl_free_error(hand, cerr)
+    return err
 
 class ParseError(Exception):
     def __init__(self, msg):
@@ -127,8 +136,12 @@ cdef class YajlParser:
     def __cinit__(self, handler, **cfg):
         Py_INCREF(handler)
         self.ctx = <Context*> malloc(sizeof(Context))
+        if self.ctx == <Context*>NULL:
+            raise MemoryError
         self.ctx.instance = <PyObject*>handler
         self.hand = yajl_alloc(get_callbacks(), NULL, self.ctx)
+        if self.hand == <yajl_handle>NULL:
+            raise MemoryError
 
         if len(cfg) > 0:
             if cfg.get('allow_comments', False):
@@ -150,6 +163,17 @@ cdef class YajlParser:
         yajl_free(self.hand)
         free(self.ctx)
 
+    def parse(self, data):
+        self.parse_chunk(data)
+
+        status = yajl_complete_parse(self.hand)
+
+        if status == yajl_status_client_canceled:
+            raise ParseClientCanceled()
+
+        if status == yajl_status_error:
+            raise ParseError(get_error_string(self.hand, data))
+
     def parse_chunk(self, chunk):
         cdef unsigned char * cerr
         
@@ -165,8 +189,5 @@ cdef class YajlParser:
             raise ParseClientCanceled()
 
         if status == yajl_status_error:
-            cerr = yajl_get_error(self.hand, 1, chunk, len(chunk))
-            err = cerr
-            yajl_free_error(self.hand, cerr)
-            raise ParseError(err)
+            raise ParseError(get_error_string(self.hand, chunk))
 
