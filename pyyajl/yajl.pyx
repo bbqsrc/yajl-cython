@@ -111,18 +111,38 @@ cdef yajl_callbacks* get_callbacks():
     cb.yajl_end_array = yajl_end_array
     return cb
 
+class ParseError(Exception):
+    def __init__(self, msg):
+        msg = msg.decode('utf-8').split(': ', 1)[1]
+        super().__init__(msg)
+
+class ParseClientCanceled(Exception):
+    pass
+
 cdef class YajlParser:
     cdef Context* ctx
     cdef object _handler
     cdef yajl_handle hand
 
-    def __cinit__(self, handler):
+    def __cinit__(self, handler, **cfg):
+        Py_INCREF(handler)
         self.ctx = <Context*> malloc(sizeof(Context))
         self.ctx.instance = <PyObject*>handler
         self.hand = yajl_alloc(get_callbacks(), NULL, self.ctx)
-        Py_INCREF(handler)
 
-    def __init__(self, handler):
+        if len(cfg) > 0:
+            if cfg.get('allow_comments', False):
+                yajl_config(self.hand, yajl_allow_comments, 1)
+            if cfg.get('dont_validate_strings', False):
+                yajl_config(self.hand, yajl_dont_validate_strings, 1)
+            if cfg.get('allow_trailing_garbage', False):
+                yajl_config(self.hand, yajl_allow_trailing_garbage, 1)
+            if cfg.get('allow_multiple_values', False):
+                yajl_config(self.hand, yajl_allow_multiple_values, 1)
+            if cfg.get('allow_partial_values', False):
+                yajl_config(self.hand, yajl_allow_partial_values, 1)
+
+    def __init__(self, handler, **cfg):
         self._handler = handler
 
     def __dealloc__(self):
@@ -131,11 +151,22 @@ cdef class YajlParser:
         free(self.ctx)
 
     def parse_chunk(self, chunk):
+        cdef unsigned char * cerr
+        
         if isinstance(chunk, str):
             chunk = chunk.encode('utf-8')
 
         if not isinstance(chunk, bytes):
             raise TypeError
 
-        yajl_parse(self.hand, chunk, len(chunk))
+        status = yajl_parse(self.hand, chunk, len(chunk))
+
+        if status == yajl_status_client_canceled:
+            raise ParseClientCanceled()
+
+        if status == yajl_status_error:
+            cerr = yajl_get_error(self.hand, 1, chunk, len(chunk))
+            err = cerr
+            yajl_free_error(self.hand, cerr)
+            raise ParseError(err)
 

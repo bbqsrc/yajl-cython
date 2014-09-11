@@ -1,7 +1,7 @@
 from yajl_common cimport *
 
 cdef extern from "yajl/yajl_parse.h":
-    cdef enum yajl_status:
+    ctypedef enum yajl_status:
         yajl_status_ok,
         yajl_status_client_canceled,
         yajl_status_error
@@ -31,7 +31,7 @@ cdef extern from "yajl/yajl_parse.h":
                                     yajl_alloc_funcs * afs,
                                     void * ctx)
     
-    cdef enum yajl_option:
+    ctypedef enum yajl_option:
         yajl_allow_comments = 0x01,
         yajl_dont_validate_strings = 0x02,
         yajl_allow_trailing_garbage = 0x04,
