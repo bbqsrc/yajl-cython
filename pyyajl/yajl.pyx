@@ -137,11 +137,5 @@ cdef class YajlParser:
         if not isinstance(chunk, bytes):
             raise TypeError
 
-        yajl_parse(self.hand, chunk, len(chunk)) 
+        yajl_parse(self.hand, chunk, len(chunk))
 
-def test():
-    handler = YajlContentHandler()
-    parser = YajlParser(handler)
-    parser.parse_chunk("{")
-    parser.parse_chunk('"foo": 2, "happy": 2')
-    parser.parse_chunk('34}')
