@@ -4,47 +4,36 @@ from libc.stdlib cimport malloc, free
 
 class YajlContentHandler:
     def null(self):
-        print('null')
         return NotImplemented
 
     def boolean(self, val):
-        print(val)
         return NotImplemented
 
     def integer(self, val):
-        print(val)
         return NotImplemented
 
     def double(self, val):
-        print(val)
         return NotImplemented
 
     def number(self, val):
-        print(val)
         return NotImplemented
 
     def string(self, val):
-        print(val)
         return NotImplemented
    
     def start_map(self):
-        print('{')
         return NotImplemented
    
     def map_key(self, val):
-        print(val)
         return NotImplemented
 
     def end_map(self):
-        print('}')
         return NotImplemented
 
     def start_array(self):
-        print()
         return NotImplemented
 
     def end_array(self):
-        print()
         return NotImplemented
 
 cdef struct Context:
